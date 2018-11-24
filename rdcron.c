@@ -99,42 +99,39 @@ static const struct {
 static char *readnum(char *line, int *out, int minval, int maxval,
 		     const enum_map_t *mnemonic, rdline_t *rd)
 {
-	int i, temp, value = 0;
+	int i, value = 0;
 	const enum_map_t *ev;
 
-	if (!isdigit(*line)) {
-		if (!mnemonic)
-			goto fail_mn;
-
-		for (i = 0; isalnum(line[i]); ++i)
+	if (isalpha(line[0]) && mnemonic != NULL) {
+		for (i = 0; isalpha(line[i]); ++i)
 			;
-		if (i == 0)
-			goto fail_mn;
-
-		temp = line[i];
-		line[i] = '\0';
 
 		for (ev = mnemonic; ev->name != NULL; ++ev) {
-			if (strcmp(line, ev->name) == 0)
+			if (strncmp(line, ev->name, i) == 0 &&
+			    ev->name[i] == '\0')
 				break;
 		}
 
 		if (ev->name == NULL) {
-			rdline_complain(rd, "unexpected '%s'", line);
+			rdline_complain(rd, "unexpected '%.*s'", i, line);
 			return NULL;
 		}
-		line[i] = temp;
+
 		*out = ev->value;
 		return line + i;
 	}
 
+	if (!isdigit(line[0]))
+		goto fail_mn;
+
 	while (isdigit(*line)) {
-		i = ((*(line++)) - '0');
-		if (value > (maxval - i) / 10)
+		if (value > INT_MAX / 10)
 			goto fail_of;
-		value = value * 10 + i;
+		value = value * 10 + *(line++) - '0';
 	}
 
+	if (value > maxval)
+		goto fail_of;
 	if (value < minval)
 		goto fail_uf;
 
@@ -155,7 +152,7 @@ static char *readfield(char *line, uint64_t *out, int minval, int maxval,
 		       const enum_map_t *mnemonic, rdline_t *rd)
 {
 	int value, endvalue, step;
-	uint64_t v = 0;
+	*out = 0;
 next:
 	if (*line == '*') {
 		++line;
@@ -188,7 +185,7 @@ next:
 	}
 
 	while (value <= endvalue) {
-		v |= 1UL << (unsigned long)(value - minval);
+		*out |= 1UL << (unsigned long)(value - minval);
 		value += step;
 	}
 
@@ -202,7 +199,6 @@ next:
 	while (isspace(*line))
 		++line;
 
-	*out = v;
 	return line;
 fail:
 	rdline_complain(rd, "invalid time range expression");

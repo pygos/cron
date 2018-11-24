@@ -38,7 +38,7 @@ static const struct {
 	crontab_t tab;
 } intervals[] = {
 	{
-		.macro = "yearly",
+		.macro = "@yearly",
 		.tab = {
 			.minute = 0x01,
 			.hour = 0x01,
@@ -47,7 +47,7 @@ static const struct {
 			.dayofweek = 0xFF
 		},
 	}, {
-		.macro = "annually",
+		.macro = "@annually",
 		.tab = {
 			.minute = 0x01,
 			.hour = 0x01,
@@ -56,7 +56,7 @@ static const struct {
 			.dayofweek = 0xFF
 		},
 	}, {
-		.macro = "monthly",
+		.macro = "@monthly",
 		.tab = {
 			.minute = 0x01,
 			.hour = 0x01,
@@ -65,7 +65,7 @@ static const struct {
 			.dayofweek = 0xFF
 		},
 	}, {
-		.macro = "weekly",
+		.macro = "@weekly",
 		.tab = {
 			.minute = 0x01,
 			.hour = 0x01,
@@ -74,7 +74,7 @@ static const struct {
 			.dayofweek = 0x01
 		},
 	}, {
-		.macro = "daily",
+		.macro = "@daily",
 		.tab = {
 			.minute = 0x01,
 			.hour = 0x01,
@@ -83,7 +83,7 @@ static const struct {
 			.dayofweek = 0xFF
 		},
 	}, {
-		.macro = "hourly",
+		.macro = "@hourly",
 		.tab = {
 			.minute = 0x01,
 			.hour = 0xFFFFFFFF,
@@ -209,34 +209,27 @@ fail:
 
 static char *cron_interval(crontab_t *cron, rdline_t *rd)
 {
-	char *arg = rd->line;
 	size_t i, j;
 
-	if (*(arg++) != '@')
-		goto fail;
-	for (j = 0; isalpha(arg[j]); ++j)
+	for (j = 1; isalpha(rd->line[j]); ++j)
 		;
-	if (j == 0 || !isspace(arg[j]))
+	if (j == 1 || !isspace(rd->line[j]))
 		goto fail;
 
 	for (i = 0; i < ARRAY_SIZE(intervals); ++i) {
 		if (strlen(intervals[i].macro) != j)
 			continue;
-		if (strncmp(intervals[i].macro, arg, j) == 0)
+		if (strncmp(intervals[i].macro, rd->line, j) == 0)
 			break;
 	}
 
 	if (i == ARRAY_SIZE(intervals))
 		goto fail;
 
-	cron->minute = intervals[i].tab.minute;
-	cron->hour = intervals[i].tab.hour;
-	cron->dayofmonth = intervals[i].tab.dayofmonth;
-	cron->month = intervals[i].tab.month;
-	cron->dayofweek = intervals[i].tab.dayofweek;
-	return arg + j;
+	*cron = intervals[i].tab;
+	return rd->line + j;
 fail:
-	rdline_complain(rd, "unknown interval '%s'", arg);
+	rdline_complain(rd, "unknown interval '%.*s'", (int)j, rd->line);
 	return NULL;
 }
 

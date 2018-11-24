@@ -115,7 +115,7 @@ static char *readnum(char *line, int *out, int minval, int maxval,
 		line[i] = '\0';
 
 		for (ev = mnemonic; ev->name != NULL; ++ev) {
-			if (!strcmp(line, mnemonic->name) == 0)
+			if (strcmp(line, ev->name) == 0)
 				break;
 		}
 

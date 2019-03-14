@@ -1,6 +1,6 @@
 AC_PREREQ([2.60])
 
-AC_INIT([gcron], [0.1], [david.oberhollenzer@tele2.at], gcron)
+AC_INIT([gcron], [0.1], [goliath@infraroot.at], gcron)
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([foreign subdir-objects dist-xz])
 AM_SILENT_RULES([yes])

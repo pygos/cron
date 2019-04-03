@@ -8,6 +8,23 @@ AC_PROG_CC
 AC_PROG_CC_C99
 AC_PROG_INSTALL
 AC_PROG_RANLIB
+AC_CANONICAL_HOST
+
+m4_ifndef([PKG_PROG_PKG_CONFIG],
+  [m4_fatal([Could not locate the pkg-config autoconf
+    macros. These are usually located in /usr/share/aclocal/pkg.m4.
+    If your macros are in a different location, try setting the
+    environment variable AL_OPTS="-I/other/macro/dir" before running
+    ./autogen.sh or autoreconf again. Make sure pkg-config is installed.])])
+PKG_PROG_PKG_CONFIG
+
+case "${host_os}" in
+linux*)
+	AM_CONDITIONAL([HAVE_LIBBSD], [true])
+	PKG_CHECK_MODULES(LIBBSD, [libbsd], [],
+				  [AC_MSG_ERROR([missing libbsd])])
+	;;
+esac
 
 UL_WARN_ADD([-Wall])
 UL_WARN_ADD([-Wextra])

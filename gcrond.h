@@ -21,6 +21,10 @@
 #include <fcntl.h>
 #include <time.h>
 
+#ifdef HAVE_LIBBSD
+#include <bsd/bsd.h>
+#endif
+
 #include "config.h"
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
@@ -42,14 +46,6 @@ typedef struct {
 	FILE *fp;
 	char *line;
 } rdline_t;
-
-int rdline_init(rdline_t *t, int dirfd, const char *filename);
-
-void rdline_complain(rdline_t *t, const char *msg, ...);
-
-void rdline_cleanup(rdline_t *t);
-
-int rdline(rdline_t *t);
 
 crontab_t *rdcron(int dirfd, const char *filename);
 

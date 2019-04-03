@@ -96,6 +96,10 @@ static const struct {
 
 /*****************************************************************************/
 
+#define complainf(rd, msg, ...) \
+	fprintf(stderr, "%s: %zu: " msg "\n", \
+		rd->filename, rd->lineno, __VA_ARGS__)
+
 static char *readnum(char *line, int *out, int minval, int maxval,
 		     const enum_map_t *mnemonic, rdline_t *rd)
 {
@@ -113,7 +117,7 @@ static char *readnum(char *line, int *out, int minval, int maxval,
 		}
 
 		if (ev->name == NULL) {
-			rdline_complain(rd, "unexpected '%.*s'", i, line);
+			complainf(rd, "unexpected '%.*s'", i, line);
 			return NULL;
 		}
 
@@ -138,13 +142,14 @@ static char *readnum(char *line, int *out, int minval, int maxval,
 	*out = value;
 	return line;
 fail_of:
-	rdline_complain(rd, "value exceeds maximum (%d > %d)", value, maxval);
+	complainf(rd, "value exceeds maximum (%d > %d)", value, maxval);
 	return NULL;
 fail_uf:
-	rdline_complain(rd, "value too small (%d < %d)", value, minval);
+	complainf(rd, "value too small (%d < %d)", value, minval);
 	return NULL;
 fail_mn:
-	rdline_complain(rd, "expected numeric value");
+	fprintf(stderr, "%s: %zu: expected numeric value\n",
+		rd->filename, rd->lineno);
 	return NULL;
 }
 
@@ -201,7 +206,8 @@ next:
 
 	return line;
 fail:
-	rdline_complain(rd, "invalid time range expression");
+	fprintf(stderr, "%s: %zu: invalid time range expression\n",
+		rd->filename, rd->lineno);
 	return NULL;
 }
 
@@ -229,7 +235,7 @@ static char *cron_interval(crontab_t *cron, rdline_t *rd)
 	*cron = intervals[i].tab;
 	return rd->line + j;
 fail:
-	rdline_complain(rd, "unknown interval '%.*s'", (int)j, rd->line);
+	complainf(rd, "unknown interval '%.*s'", (int)j, rd->line);
 	return NULL;
 }
 
@@ -266,14 +272,39 @@ crontab_t *rdcron(int dirfd, const char *filename)
 	crontab_t *cron, *list = NULL;
 	rdline_t rd;
 	char *ptr;
+	int fd;
 
-	if (rdline_init(&rd, dirfd, filename))
+	memset(&rd, 0, sizeof(rd));
+	rd.filename = filename;
+
+	fd = openat(dirfd, filename, O_RDONLY);
+	if (fd == -1) {
+		perror(filename);
 		return NULL;
+	}
 
-	while (rdline(&rd) == 0) {
+	rd.fp = fdopen(fd, "r");
+	if (rd.fp == NULL) {
+		perror("fdopen");
+		close(fd);
+		return NULL;
+	}
+
+	for (;;) {
+		free(rd.line);
+		errno = 0;
+
+		rd.line = fparseln(rd.fp, NULL, &rd.lineno, NULL, 0);
+
+		if (rd.line == NULL) {
+			if (errno)
+				perror(filename);
+			break;
+		}
+
 		cron = calloc(1, sizeof(*cron));
 		if (cron == NULL) {
-			rdline_complain(&rd, strerror(errno));
+			perror(filename);
 			break;
 		}
 
@@ -293,7 +324,7 @@ crontab_t *rdcron(int dirfd, const char *filename)
 
 		cron->exec = strdup(ptr);
 		if (cron->exec == NULL) {
-			rdline_complain(&rd, strerror(errno));
+			perror(filename);
 			free(cron);
 			continue;
 		}
@@ -302,6 +333,6 @@ crontab_t *rdcron(int dirfd, const char *filename)
 		list = cron;
 	}
 
-	rdline_cleanup(&rd);
+	fclose(rd.fp);
 	return list;
 }
